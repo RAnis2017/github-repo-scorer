@@ -14,12 +14,14 @@ import { GitHubRepoDto } from './dto/github-repo.dto';
 @Injectable()
 export class GitHubService {
   private readonly apiUrl: string;
+  private readonly token: string;
 
   constructor(
     private readonly http: HttpService,
     private readonly config: ConfigService,
   ) {
     this.apiUrl = this.config.get<string>('github.apiUrl')!;
+    this.token = this.config.get<string>('github.token') ?? '';
   }
 
   async searchRepositories(
@@ -30,7 +32,11 @@ export class GitHubService {
   ): Promise<GitHubRepoDto[]> {
     const q = `language:${language} created:>=${createdAfter}`;
     const params = { q, page, per_page: perPage, sort: 'stars', order: 'desc' };
-    const headers = { Accept: 'application/vnd.github+json' };
+    const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
 
     const data = await this.fetch({ params, headers });
     return data.items.map((item: any) => this.mapRepo(item));
