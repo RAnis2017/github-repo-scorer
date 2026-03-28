@@ -1,7 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  BadGatewayException,
+  BadRequestException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, TimeoutError } from 'rxjs';
+import { timeout } from 'rxjs/operators';
+import { AxiosError } from 'axios';
 import { GitHubRepoDto } from './dto/github-repo.dto';
 
 @Injectable()
@@ -25,10 +32,40 @@ export class GitHubService {
     const params = { q, page, per_page: perPage, sort: 'stars', order: 'desc' };
     const headers = { Accept: 'application/vnd.github+json' };
 
-    const res = await firstValueFrom(
-      this.http.get(`${this.apiUrl}/search/repositories`, { params, headers }),
-    );
-    return res.data.items.map((item: any) => this.mapRepo(item));
+    const data = await this.fetch({ params, headers });
+    return data.items.map((item: any) => this.mapRepo(item));
+  }
+
+  private async fetch(options: { params: any; headers: Record<string, string> }): Promise<any> {
+    try {
+      const res = await firstValueFrom(
+        this.http
+          .get(`${this.apiUrl}/search/repositories`, options)
+          .pipe(timeout(10000)),
+      );
+      return res.data;
+    } catch (err) {
+      if (err instanceof TimeoutError) {
+        throw new BadGatewayException('GitHub API timed out');
+      }
+
+      const axiosErr = err as AxiosError;
+      const status = axiosErr.response?.status;
+
+      if (status === 403) {
+        const reset = axiosErr.response?.headers['x-ratelimit-reset'];
+        const msg = reset
+          ? `retry after ${new Date(Number(reset) * 1000).toISOString()}`
+          : 'rate limited';
+        throw new ServiceUnavailableException(`GitHub rate limit exceeded — ${msg}`);
+      }
+
+      if (status === 422) {
+        throw new BadRequestException('Invalid query sent to GitHub API');
+      }
+
+      throw new BadGatewayException('GitHub API error');
+    }
   }
 
   private mapRepo(item: any): GitHubRepoDto {
