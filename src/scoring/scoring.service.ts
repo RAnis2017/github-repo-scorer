@@ -32,9 +32,11 @@ export class ScoringService {
   }
 
   private rawScore(repo: GitHubRepoDto): number {
-    const starScore = Math.log2(1 + repo.stargazers_count);
-    const forkScore = Math.log2(1 + repo.forks_count);
-    const daysSincePush = (Date.now() - new Date(repo.pushed_at).getTime()) / 86_400_000;
+    const starScore = Math.log2(1 + (repo.stargazers_count || 0));
+    const forkScore = Math.log2(1 + (repo.forks_count || 0));
+
+    const pushedMs = repo.pushed_at ? new Date(repo.pushed_at).getTime() : 0;
+    const daysSincePush = pushedMs > 0 ? (Date.now() - pushedMs) / 86_400_000 : 365;
     const recencyScore = Math.max(0, 1 - daysSincePush / 365);
 
     return (
