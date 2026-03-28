@@ -4,6 +4,7 @@
 
 # OS
 .DS_Store
+Thumbs.db
 
 # env files
 .env
@@ -15,3 +16,5 @@
 
 # misc
 *.js.map
+*.d.ts.map
+/logs
