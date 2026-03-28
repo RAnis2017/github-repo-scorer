@@ -3,9 +3,12 @@ import {
   BadGatewayException,
   BadRequestException,
   ServiceUnavailableException,
+  Inject,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { firstValueFrom, TimeoutError } from 'rxjs';
 import { timeout } from 'rxjs/operators';
 import { AxiosError } from 'axios';
@@ -19,6 +22,7 @@ export class GitHubService {
   constructor(
     private readonly http: HttpService,
     private readonly config: ConfigService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {
     this.apiUrl = this.config.get<string>('github.apiUrl')!;
     this.token = this.config.get<string>('github.token') ?? '';
@@ -30,7 +34,13 @@ export class GitHubService {
     page: number,
     perPage: number,
   ): Promise<GitHubRepoDto[]> {
+// TODO: swap to Redis for multi-instance deployments
+    const cacheKey = `repos:${language}:${createdAfter}:${page}:${perPage}`;
+    const cached = await this.cache.get<GitHubRepoDto[]>(cacheKey);
+    if (cached) return cached;
+
     const q = `language:${language} created:>=${createdAfter}`;
+
     const params = { q, page, per_page: perPage, sort: 'stars', order: 'desc' };
     const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
 
@@ -39,7 +49,9 @@ export class GitHubService {
     }
 
     const data = await this.fetch({ params, headers });
-    return data.items.map((item: any) => this.mapRepo(item));
+    const repos = data.items.map((item: any) => this.mapRepo(item));
+    await this.cache.set(cacheKey, repos);
+    return repos;
   }
 
   // TODO: add circuit breaker for GitHub API calls
