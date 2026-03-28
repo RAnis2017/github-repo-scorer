@@ -36,7 +36,8 @@ export class GitHubService {
     return data.items.map((item: any) => this.mapRepo(item));
   }
 
-  private async fetch(options: { params: any; headers: Record<string, string> }): Promise<any> {
+  // TODO: add circuit breaker for GitHub API calls
+  private async fetch(options: { params: any; headers: Record<string, string> }, attempt = 1): Promise<any> {
     try {
       const res = await firstValueFrom(
         this.http
@@ -62,6 +63,11 @@ export class GitHubService {
 
       if (status === 422) {
         throw new BadRequestException('Invalid query sent to GitHub API');
+      }
+
+      if (status && status >= 500 && attempt === 1) {
+        await new Promise((r) => setTimeout(r, 1000));
+        return this.fetch(options, 2);
       }
 
       throw new BadGatewayException('GitHub API error');
