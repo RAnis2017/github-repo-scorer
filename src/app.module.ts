@@ -4,9 +4,11 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { RepositoriesModule } from './repositories/repositories.module';
+import { HealthController } from './health/health.controller';
 import configuration from './config/configuration';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
