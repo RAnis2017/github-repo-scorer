@@ -71,7 +71,7 @@ npm run test:e2e
 
 4. **Rate limiting.** The endpoint is protected with `@nestjs/throttler` at 60 requests per minute per IP. This prevents a single client from exhausting the GitHub quota. In a full production setup this would be paired with API key auth to make per-client limits meaningful rather than just per-IP.
 
-5. **No CI/CD.** A GitHub Actions workflow for running tests and building the Docker image on each push would be a quick addition.
+5. **CI/CD.** A GitHub Actions workflow runs lint, build, and tests on every push and pull request to main.
 
 6. **Scoring signal quality.** There's a lot more you could factor in: open issues ratio, number of contributors, license type, dependency health. With enough historical data you could also learn the weights automatically rather than hand-tuning them.
 
