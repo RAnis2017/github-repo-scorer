@@ -69,7 +69,7 @@ npm run test:e2e
 
 3. **No authentication on the endpoint.** The risk is fairly low since we're just proxying a public API, but in a real service I'd put some form of API key or JWT validation in front of it.
 
-4. **No rate limiting on our own endpoint.** Without it someone could hammer the service and burn through our GitHub quota even with caching in place. `@nestjs/throttler` would sort this out in a few lines.
+4. **Rate limiting.** The endpoint is protected with `@nestjs/throttler` at 60 requests per minute per IP. This prevents a single client from exhausting the GitHub quota. In a full production setup this would be paired with API key auth to make per-client limits meaningful rather than just per-IP.
 
 5. **No CI/CD.** A GitHub Actions workflow for running tests and building the Docker image on each push would be a quick addition.
 

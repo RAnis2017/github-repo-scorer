@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { RepositoriesModule } from './repositories/repositories.module';
 import configuration from './config/configuration';
 
@@ -17,7 +19,14 @@ import configuration from './config/configuration';
         ttl: config.get<number>('cache.ttl')! * 1000,
       }),
     }),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     RepositoriesModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}
