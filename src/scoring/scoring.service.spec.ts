@@ -3,7 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { ScoringService } from './scoring.service';
 import { GitHubRepoDto } from '../github/dto/github-repo.dto';
 
-const defaultWeights = { 'scoring.weightStars': 0.5, 'scoring.weightForks': 0.3, 'scoring.weightRecency': 0.2 };
+const defaultWeights = {
+  'scoring.weightStars': 0.5,
+  'scoring.weightForks': 0.3,
+  'scoring.weightRecency': 0.2,
+};
 
 function makeRepo(overrides: Partial<GitHubRepoDto> = {}): GitHubRepoDto {
   return {
@@ -28,7 +32,9 @@ async function createService(weights = defaultWeights) {
       ScoringService,
       {
         provide: ConfigService,
-        useValue: { get: (key: string) => weights[key as keyof typeof weights] },
+        useValue: {
+          get: (key: string) => weights[key as keyof typeof weights],
+        },
       },
     ],
   }).compile();
@@ -61,7 +67,12 @@ describe('ScoringService', () => {
     const staleDate = new Date(Date.now() - 400 * 86_400_000).toISOString();
     const [active, zeroed] = svc.scoreRepositories([
       makeRepo({ stargazers_count: 5000 }),
-      makeRepo({ id: 2, stargazers_count: 0, forks_count: 0, pushed_at: staleDate }),
+      makeRepo({
+        id: 2,
+        stargazers_count: 0,
+        forks_count: 0,
+        pushed_at: staleDate,
+      }),
     ]);
     expect(zeroed.score).toBeLessThan(active.score);
   });
@@ -69,7 +80,11 @@ describe('ScoringService', () => {
   it('scores are always between 0 and 100', async () => {
     const svc = await createService();
     const repos = [
-      makeRepo({ stargazers_count: 0, forks_count: 0, pushed_at: new Date(0).toISOString() }),
+      makeRepo({
+        stargazers_count: 0,
+        forks_count: 0,
+        pushed_at: new Date(0).toISOString(),
+      }),
       makeRepo({ id: 2, stargazers_count: 100000, forks_count: 50000 }),
     ];
     const scored = svc.scoreRepositories(repos);
@@ -96,7 +111,10 @@ describe('ScoringService', () => {
   it('changing star weight affects scores', async () => {
     const heavyStars = { ...defaultWeights, 'scoring.weightStars': 0.9 };
     const lightStars = { ...defaultWeights, 'scoring.weightStars': 0.1 };
-    const repos = [makeRepo({ stargazers_count: 1 }), makeRepo({ id: 2, stargazers_count: 50000 })];
+    const repos = [
+      makeRepo({ stargazers_count: 1 }),
+      makeRepo({ id: 2, stargazers_count: 50000 }),
+    ];
 
     const svcHeavy = await createService(heavyStars);
     const svcLight = await createService(lightStars);

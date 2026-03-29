@@ -36,7 +36,8 @@ export class ScoringService {
     const forkScore = Math.log2(1 + (repo.forks_count || 0));
 
     const pushedMs = repo.pushed_at ? new Date(repo.pushed_at).getTime() : 0;
-    const daysSincePush = pushedMs > 0 ? (Date.now() - pushedMs) / 86_400_000 : 365;
+    const daysSincePush =
+      pushedMs > 0 ? (Date.now() - pushedMs) / 86_400_000 : 365;
     const recencyScore = Math.max(0, 1 - daysSincePush / 365);
 
     return (

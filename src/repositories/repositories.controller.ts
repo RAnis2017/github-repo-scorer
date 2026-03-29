@@ -16,14 +16,20 @@ export class RepositoriesController {
   @Get()
   @ApiQuery({ name: 'language', required: true })
   @ApiQuery({ name: 'createdAfter', required: true })
-  @ApiQuery({ name: 'sort', required: false, enum: ['score', 'stars', 'forks'] })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    enum: ['score', 'stars', 'forks'],
+  })
   @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'] })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'perPage', required: false })
   @ApiResponse({ status: 200, type: [ScoredRepoDto] })
   @ApiResponse({ status: 400, description: 'Invalid query params' })
   @ApiResponse({ status: 503, description: 'GitHub rate limit exceeded' })
-  async getRepositories(@Query() query: SearchReposDto): Promise<ScoredRepoDto[]> {
+  async getRepositories(
+    @Query() query: SearchReposDto,
+  ): Promise<ScoredRepoDto[]> {
     const repos = await this.github.searchRepositories(
       query.language,
       query.createdAfter,
@@ -35,7 +41,11 @@ export class RepositoriesController {
     return this.sort(scored, query.sort, query.order);
   }
 
-  private sort(repos: ScoredRepoDto[], by: string, order: 'asc' | 'desc'): ScoredRepoDto[] {
+  private sort(
+    repos: ScoredRepoDto[],
+    by: string,
+    order: 'asc' | 'desc',
+  ): ScoredRepoDto[] {
     const fieldMap: Record<string, keyof ScoredRepoDto> = {
       score: 'score',
       stars: 'stargazers_count',
