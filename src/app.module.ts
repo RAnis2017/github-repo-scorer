@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { RepositoriesModule } from './repositories/repositories.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -18,6 +19,7 @@ import configuration from './config/configuration';
         ttl: config.get<number>('cache.ttl')! * 1000,
       }),
     }),
+    RepositoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
