@@ -17,6 +17,7 @@ Swagger UI is available at `http://localhost:3000/api`.
 **Docker:**
 
 ```bash
+cp .env.example .env
 docker-compose up --build
 ```
 
