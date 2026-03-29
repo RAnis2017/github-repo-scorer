@@ -1,8 +1,8 @@
 {
   "name": "github-repo-scorer",
   "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "description": "NestJS REST API that searches and scores GitHub repositories by popularity",
+  "author": "Raza Anis",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
