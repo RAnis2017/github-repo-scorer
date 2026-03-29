@@ -34,7 +34,7 @@ export class GitHubService {
     page: number,
     perPage: number,
   ): Promise<GitHubRepoDto[]> {
-// TODO: swap to Redis for multi-instance deployments
+// using in-memory cache for now, would swap to Redis for multi-instance deployments
     const cacheKey = `repos:${language}:${createdAfter}:${page}:${perPage}`;
     const cached = await this.cache.get<GitHubRepoDto[]>(cacheKey);
     if (cached) return cached;
@@ -54,7 +54,7 @@ export class GitHubService {
     return repos;
   }
 
-  // TODO: add circuit breaker for GitHub API calls
+  // a circuit breaker would be a good addition here to avoid hammering GitHub when it's having issues
   private async fetch(options: { params: any; headers: Record<string, string> }, attempt = 1): Promise<any> {
     try {
       const res = await firstValueFrom(
@@ -76,7 +76,7 @@ export class GitHubService {
         const msg = reset
           ? `retry after ${new Date(Number(reset) * 1000).toISOString()}`
           : 'rate limited';
-        throw new ServiceUnavailableException(`GitHub rate limit exceeded — ${msg}`);
+        throw new ServiceUnavailableException(`GitHub rate limit exceeded, ${msg}`);
       }
 
       if (status === 422) {

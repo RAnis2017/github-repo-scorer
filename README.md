@@ -1,6 +1,6 @@
 # github-repo-scorer
 
-A NestJS REST API that searches GitHub repositories by language and creation date, then scores each one by popularity using a weighted combination of stars, forks, and update recency.
+A NestJS REST API that searches GitHub repositories by language and creation date, then scores each one by popularity using a weighted combination of stars, forks, and how recently it was updated.
 
 ## How to run
 
@@ -30,8 +30,8 @@ All query params:
 
 | Param | Required | Default | Notes |
 |---|---|---|---|
-| `language` | yes | — | e.g. `typescript`, `go`, `python` |
-| `createdAfter` | yes | — | ISO date, e.g. `2024-01-01` |
+| `language` | yes | | e.g. `typescript`, `go`, `python` |
+| `createdAfter` | yes | | ISO date, e.g. `2024-01-01` |
 | `sort` | no | `score` | `score`, `stars`, or `forks` |
 | `order` | no | `desc` | `asc` or `desc` |
 | `page` | no | `1` | |
@@ -41,15 +41,15 @@ All query params:
 
 Each repository gets a raw score from three factors:
 
-**Stars (weight 0.5)** — `log₂(1 + stars)`. Log scaling because GitHub star counts follow a power law distribution. Linear scoring would let a 100k-star repo completely dominate a 1k-star one; log compression makes the meaningful range feel proportional.
+**Stars (weight 0.5):** `log2(1 + stars)`. Log scaling because star counts follow a power law distribution. Without it a 100k-star repo would completely drown out a 1k-star one, even if the smaller repo is more relevant to the query.
 
-**Forks (weight 0.3)** — `log₂(1 + forks)`. Same log rationale, lower weight because forks correlate heavily with stars already — they're a weaker independent signal.
+**Forks (weight 0.3):** `log2(1 + forks)`. Same log reasoning, but lower weight because forks tend to track stars pretty closely so they don't add as much independent signal.
 
-**Recency (weight 0.2)** — `max(0, 1 - daysSinceLastPush / 365)`. A repo pushed today gets full recency credit; anything untouched for over a year gets zero. Lower weight than stars because mature, stable libraries shouldn't be penalised just for not needing daily commits.
+**Recency (weight 0.2):** `max(0, 1 - daysSinceLastPush / 365)`. A repo pushed today scores 1.0 here; anything not touched in over a year scores 0. The weight is intentionally low so that stable, mature libraries don't get buried just because they don't need daily commits.
 
-Raw scores are normalized to 0–100 relative to the batch. All three weights are configurable via environment variables (`SCORING_WEIGHT_STARS`, `SCORING_WEIGHT_FORKS`, `SCORING_WEIGHT_RECENCY`) so they can be tuned without code changes.
+Raw scores are then normalized to a 0-100 range relative to the current batch of results. All three weights can be changed via environment variables (`SCORING_WEIGHT_STARS`, `SCORING_WEIGHT_FORKS`, `SCORING_WEIGHT_RECENCY`) without touching the code.
 
-This is a simplified model. A production scorer would benefit from additional signals and possibly learned weights.
+One thing worth noting about pagination: scores are calculated relative to whatever repos come back for the requested page, not across all pages globally. So the top result on page 2 will also show score 100, but that just means it ranked highest within that subset. True cross-page scoring would require fetching and storing every matching repo first, which is not practical here given GitHub's hard 1000-result cap on search queries and the infrastructure overhead of keeping those scores fresh.
 
 ## Running tests
 
@@ -63,24 +63,24 @@ npm run test:e2e
 
 ## Trade-offs and future improvements
 
-1. **No async ingestion pipeline.** The API currently fetches and scores repos on each request (with caching). In a production system I'd introduce an async pipeline — a scheduled worker or RabbitMQ-driven consumer that periodically fetches trending repos, pre-scores them, and writes to a persistent store like MongoDB. The API would then read from that store instead of calling GitHub directly. This decouples response times from a third-party dependency, eliminates rate limit concerns, and lets the scoring logic evolve independently of the serving path.
+1. **No async ingestion pipeline.** Right now the API fetches and scores repos live on each request (with a short cache in front). For a production setup I would replace this with a background worker that periodically pulls repos from GitHub, pre-scores them, and stores the results in something like MongoDB. The API would then just read from that store. That way response times don't depend on GitHub being fast, rate limits become much less of a concern, and you can iterate on the scoring logic without it affecting the serving layer.
 
-2. **In-memory cache.** Works fine for a single instance but doesn't survive restarts and won't scale horizontally. Redis would be the natural next step. The cache injection point is already abstracted behind `CACHE_MANAGER` so swapping the store is a one-line config change (see the TODO in `github.service.ts`).
+2. **In-memory cache.** Fine for a single instance but it doesn't survive restarts and won't work across multiple nodes. Redis is the obvious next step. The cache is already injected through `CACHE_MANAGER` so switching the backing store is basically a one-line config change (there's a TODO comment in `github.service.ts` marking the spot).
 
-3. **No authentication on the endpoint.** Since it proxies a public API the risk is low, but in production I'd add API key validation or JWT middleware.
+3. **No authentication on the endpoint.** The risk is fairly low since we're just proxying a public API, but in a real service I'd put some form of API key or JWT validation in front of it.
 
-4. **No rate limiting on our own endpoint.** A bad actor could hammer the service and exhaust our GitHub quota even with caching. `@nestjs/throttler` would handle this in a few lines.
+4. **No rate limiting on our own endpoint.** Without it someone could hammer the service and burn through our GitHub quota even with caching in place. `@nestjs/throttler` would sort this out in a few lines.
 
-5. **No CI/CD.** GitHub Actions for automated test runs and Docker image builds would be a straightforward addition.
+5. **No CI/CD.** A GitHub Actions workflow for running tests and building the Docker image on each push would be a quick addition.
 
-6. **Scoring signal quality.** More signals — open issues ratio, contributor count, license type, dependency health — would improve accuracy. With enough historical data, learned weights (even a simple linear regression) would outperform hand-tuned ones.
+6. **Scoring signal quality.** There's a lot more you could factor in: open issues ratio, number of contributors, license type, dependency health. With enough historical data you could also learn the weights automatically rather than hand-tuning them.
 
 ## Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
 | `GITHUB_API_URL` | `https://api.github.com` | GitHub API base URL |
-| `GITHUB_TOKEN` | _(empty)_ | Optional PAT for higher rate limits (5000 req/hr vs 60) |
+| `GITHUB_TOKEN` | (empty) | Optional PAT for higher rate limits (5000 req/hr vs 60) |
 | `SCORING_WEIGHT_STARS` | `0.5` | Star score weight |
 | `SCORING_WEIGHT_FORKS` | `0.3` | Fork score weight |
 | `SCORING_WEIGHT_RECENCY` | `0.2` | Recency score weight |

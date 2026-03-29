@@ -24,7 +24,7 @@ export class ScoringService {
     const raw = repos.map((r) => ({ repo: r, raw: this.rawScore(r) }));
     const max = Math.max(...raw.map((r) => r.raw));
 
-    // when max is 0 every repo scores identically — give them all 100
+    // if max is 0 all repos are equal, just give them all 100
     return raw.map(({ repo, raw: r }) => ({
       ...repo,
       score: max === 0 ? 100 : Math.round((r / max) * 100),
