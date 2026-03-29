@@ -74,3 +74,15 @@ npm run test:e2e
 5. **No CI/CD.** GitHub Actions for automated test runs and Docker image builds would be a straightforward addition.
 
 6. **Scoring signal quality.** More signals — open issues ratio, contributor count, license type, dependency health — would improve accuracy. With enough historical data, learned weights (even a simple linear regression) would outperform hand-tuned ones.
+
+## Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `GITHUB_API_URL` | `https://api.github.com` | GitHub API base URL |
+| `GITHUB_TOKEN` | _(empty)_ | Optional PAT for higher rate limits (5000 req/hr vs 60) |
+| `SCORING_WEIGHT_STARS` | `0.5` | Star score weight |
+| `SCORING_WEIGHT_FORKS` | `0.3` | Fork score weight |
+| `SCORING_WEIGHT_RECENCY` | `0.2` | Recency score weight |
+| `CACHE_TTL` | `600` | Cache TTL in seconds |
+| `PORT` | `3000` | HTTP port |
