@@ -44,7 +44,7 @@ export class RepositoriesController {
     const field = fieldMap[by] ?? 'score';
 
     return [...repos].sort((a, b) => {
-      const diff = (a[field] as number) - (b[field] as number);
+      const diff = Number(a[field] ?? 0) - Number(b[field] ?? 0);
       return order === 'asc' ? diff : -diff;
     });
   }
