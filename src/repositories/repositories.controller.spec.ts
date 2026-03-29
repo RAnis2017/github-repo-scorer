@@ -1,5 +1,4 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
 import { RepositoriesController } from './repositories.controller';
 import { GitHubService } from '../github/github.service';
 import { ScoringService } from '../scoring/scoring.service';
@@ -30,7 +29,10 @@ async function createController(
     controllers: [RepositoriesController],
     providers: [
       { provide: GitHubService, useValue: { searchRepositories: searchRepos } },
-      { provide: ScoringService, useValue: { scoreRepositories: scoreRepositories } },
+      {
+        provide: ScoringService,
+        useValue: { scoreRepositories: scoreRepositories },
+      },
     ],
   }).compile();
 
@@ -39,7 +41,11 @@ async function createController(
 
 describe('RepositoriesController', () => {
   it('returns scored results in desc order by default', async () => {
-    const repos = [makeScoredRepo({ score: 40, id: 1 }), makeScoredRepo({ score: 90, id: 2 }), makeScoredRepo({ score: 60, id: 3 })];
+    const repos = [
+      makeScoredRepo({ score: 40, id: 1 }),
+      makeScoredRepo({ score: 90, id: 2 }),
+      makeScoredRepo({ score: 60, id: 3 }),
+    ];
     const ctrl = await createController(
       jest.fn().mockResolvedValue(repos),
       jest.fn().mockReturnValue(repos),
@@ -59,7 +65,10 @@ describe('RepositoriesController', () => {
   });
 
   it('returns results in asc order when requested', async () => {
-    const repos = [makeScoredRepo({ score: 40, id: 1 }), makeScoredRepo({ score: 90, id: 2 })];
+    const repos = [
+      makeScoredRepo({ score: 40, id: 1 }),
+      makeScoredRepo({ score: 90, id: 2 }),
+    ];
     const ctrl = await createController(
       jest.fn().mockResolvedValue(repos),
       jest.fn().mockReturnValue(repos),
@@ -102,7 +111,10 @@ describe('RepositoriesController', () => {
 
   it('passes pagination params to github service', async () => {
     const searchRepos = jest.fn().mockResolvedValue([]);
-    const ctrl = await createController(searchRepos, jest.fn().mockReturnValue([]));
+    const ctrl = await createController(
+      searchRepos,
+      jest.fn().mockReturnValue([]),
+    );
 
     await ctrl.getRepositories({
       language: 'go',

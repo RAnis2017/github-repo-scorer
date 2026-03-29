@@ -14,6 +14,32 @@ import { timeout } from 'rxjs/operators';
 import { AxiosError } from 'axios';
 import { GitHubRepoDto } from './dto/github-repo.dto';
 
+interface GitHubRawRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  html_url: string;
+  description: string | null;
+  stargazers_count: number;
+  forks_count: number;
+  language: string | null;
+  created_at: string;
+  updated_at: string;
+  pushed_at: string;
+}
+
+interface GitHubSearchResponse {
+  items: GitHubRawRepo[];
+}
+
+interface SearchParams {
+  q: string;
+  page: number;
+  per_page: number;
+  sort: string;
+  order: string;
+}
+
 @Injectable()
 export class GitHubService {
   private readonly apiUrl: string;
@@ -34,7 +60,7 @@ export class GitHubService {
     page: number,
     perPage: number,
   ): Promise<GitHubRepoDto[]> {
-// using in-memory cache for now, would swap to Redis for multi-instance deployments
+    // using in-memory cache for now, would swap to Redis for multi-instance deployments
     const cacheKey = `repos:${language}:${createdAfter}:${page}:${perPage}`;
     const cached = await this.cache.get<GitHubRepoDto[]>(cacheKey);
     if (cached) return cached;
@@ -42,27 +68,32 @@ export class GitHubService {
     const q = `language:${language} created:>=${createdAfter}`;
 
     const params = { q, page, per_page: perPage, sort: 'stars', order: 'desc' };
-    const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+    };
 
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
     const data = await this.fetch({ params, headers });
-    const repos = data.items.map((item: any) => this.mapRepo(item));
+    const repos = data.items.map((item) => this.mapRepo(item));
     await this.cache.set(cacheKey, repos);
     return repos;
   }
 
   // a circuit breaker would be a good addition here to avoid hammering GitHub when it's having issues
-  private async fetch(options: { params: any; headers: Record<string, string> }, attempt = 1): Promise<any> {
+  private async fetch(
+    options: { params: SearchParams; headers: Record<string, string> },
+    attempt = 1,
+  ): Promise<GitHubSearchResponse> {
     try {
       const res = await firstValueFrom(
         this.http
           .get(`${this.apiUrl}/search/repositories`, options)
           .pipe(timeout(10000)),
       );
-      return res.data;
+      return res.data as GitHubSearchResponse;
     } catch (err) {
       if (err instanceof TimeoutError) {
         throw new BadGatewayException('GitHub API timed out');
@@ -72,11 +103,15 @@ export class GitHubService {
       const status = axiosErr.response?.status;
 
       if (status === 403) {
-        const reset = axiosErr.response?.headers['x-ratelimit-reset'];
+        const reset = axiosErr.response?.headers['x-ratelimit-reset'] as
+          | string
+          | undefined;
         const msg = reset
           ? `retry after ${new Date(Number(reset) * 1000).toISOString()}`
           : 'rate limited';
-        throw new ServiceUnavailableException(`GitHub rate limit exceeded, ${msg}`);
+        throw new ServiceUnavailableException(
+          `GitHub rate limit exceeded, ${msg}`,
+        );
       }
 
       if (status === 422) {
@@ -92,7 +127,7 @@ export class GitHubService {
     }
   }
 
-  private mapRepo(item: any): GitHubRepoDto {
+  private mapRepo(item: GitHubRawRepo): GitHubRepoDto {
     return {
       id: item.id,
       name: item.name,

@@ -33,7 +33,11 @@ describe('/repositories (e2e)', () => {
 
     app = module.createNestApplication();
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true, transformOptions: { enableImplicitConversion: false } }),
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: false },
+      }),
     );
     await app.init();
 
@@ -45,25 +49,32 @@ describe('/repositories (e2e)', () => {
   });
 
   it('returns 200 with scored repo array', async () => {
-    jest.spyOn(githubService, 'searchRepositories').mockResolvedValue([
-      makeFakeRepo({ id: 1, stargazers_count: 2000 }),
-      makeFakeRepo({ id: 2, stargazers_count: 500 }),
-    ]);
+    jest
+      .spyOn(githubService, 'searchRepositories')
+      .mockResolvedValue([
+        makeFakeRepo({ id: 1, stargazers_count: 2000 }),
+        makeFakeRepo({ id: 2, stargazers_count: 500 }),
+      ]);
 
     const res = await request(app.getHttpServer())
       .get('/repositories')
       .query({ language: 'typescript', createdAfter: '2024-01-01' })
       .expect(200);
 
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body[0]).toHaveProperty('score');
-    expect(res.body[0]).toHaveProperty('name');
-    expect(res.body[0]).toHaveProperty('stargazers_count');
+    const body = res.body as Record<string, unknown>[];
+    expect(Array.isArray(body)).toBe(true);
+    expect(body[0]).toHaveProperty('score');
+    expect(body[0]).toHaveProperty('name');
+    expect(body[0]).toHaveProperty('stargazers_count');
   });
 
   it('returns results sorted desc by score by default', async () => {
     jest.spyOn(githubService, 'searchRepositories').mockResolvedValue([
-      makeFakeRepo({ id: 1, stargazers_count: 100, pushed_at: new Date(Date.now() - 300 * 86400000).toISOString() }),
+      makeFakeRepo({
+        id: 1,
+        stargazers_count: 100,
+        pushed_at: new Date(Date.now() - 300 * 86400000).toISOString(),
+      }),
       makeFakeRepo({ id: 2, stargazers_count: 50000 }),
     ]);
 
@@ -72,7 +83,8 @@ describe('/repositories (e2e)', () => {
       .query({ language: 'typescript', createdAfter: '2024-01-01' })
       .expect(200);
 
-    expect(res.body[0].score).toBeGreaterThanOrEqual(res.body[res.body.length - 1].score);
+    const body = res.body as Array<{ score: number }>;
+    expect(body[0].score).toBeGreaterThanOrEqual(body[body.length - 1].score);
   });
 
   it('returns 400 when language is missing', async () => {
@@ -92,7 +104,11 @@ describe('/repositories (e2e)', () => {
   it('returns 400 when perPage exceeds 100', async () => {
     await request(app.getHttpServer())
       .get('/repositories')
-      .query({ language: 'typescript', createdAfter: '2024-01-01', perPage: 200 })
+      .query({
+        language: 'typescript',
+        createdAfter: '2024-01-01',
+        perPage: 200,
+      })
       .expect(400);
   });
 

@@ -34,6 +34,6 @@ export class ScoredRepoDto {
   @ApiProperty()
   pushed_at: string;
 
-  @ApiProperty({ description: '0–100 popularity score' })
+  @ApiProperty({ description: '0-100 popularity score' })
   score: number;
 }

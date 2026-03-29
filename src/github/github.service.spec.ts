@@ -2,12 +2,19 @@ import { Test } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { BadGatewayException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
-import { of, throwError } from 'rxjs';
+import {
+  BadGatewayException,
+  BadRequestException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { of, throwError, TimeoutError } from 'rxjs';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { GitHubService } from './github.service';
 
-function makeAxiosError(status: number, headers: Record<string, string> = {}): AxiosError {
+function makeAxiosError(
+  status: number,
+  headers: Record<string, string> = {},
+): AxiosError {
   const err = new AxiosError('error');
   err.response = {
     status,
@@ -36,7 +43,10 @@ function makeRepoItem(overrides = {}) {
   };
 }
 
-async function createService(httpGet: jest.Mock, cacheGet: jest.Mock = jest.fn().mockResolvedValue(null)) {
+async function createService(
+  httpGet: jest.Mock,
+  cacheGet: jest.Mock = jest.fn().mockResolvedValue(null),
+) {
   const module = await Test.createTestingModule({
     providers: [
       GitHubService,
@@ -47,7 +57,10 @@ async function createService(httpGet: jest.Mock, cacheGet: jest.Mock = jest.fn()
       {
         provide: ConfigService,
         useValue: {
-          get: (key: string) => ({ 'github.apiUrl': 'https://api.github.com', 'github.token': '' }[key] ?? null),
+          get: (key: string) =>
+            ({ 'github.apiUrl': 'https://api.github.com', 'github.token': '' })[
+              key
+            ] ?? null,
         },
       },
       {
@@ -62,12 +75,17 @@ async function createService(httpGet: jest.Mock, cacheGet: jest.Mock = jest.fn()
 
 describe('GitHubService', () => {
   it('builds query string from language and date', async () => {
-    const httpGet = jest.fn().mockReturnValue(of({ data: { items: [makeRepoItem()] } }));
+    const httpGet = jest
+      .fn()
+      .mockReturnValue(of({ data: { items: [makeRepoItem()] } }));
     const svc = await createService(httpGet);
 
     await svc.searchRepositories('typescript', '2024-01-01', 1, 10);
 
-    const [, options] = httpGet.mock.calls[0];
+    const [, options] = httpGet.mock.calls[0] as [
+      string,
+      { params: { q: string; page: number; per_page: number } },
+    ];
     expect(options.params.q).toBe('language:typescript created:>=2024-01-01');
     expect(options.params.page).toBe(1);
     expect(options.params.per_page).toBe(10);
@@ -78,7 +96,12 @@ describe('GitHubService', () => {
     const httpGet = jest.fn().mockReturnValue(of({ data: { items: [item] } }));
     const svc = await createService(httpGet);
 
-    const repos = await svc.searchRepositories('typescript', '2024-01-01', 1, 10);
+    const repos = await svc.searchRepositories(
+      'typescript',
+      '2024-01-01',
+      1,
+      10,
+    );
     expect(repos).toHaveLength(1);
     expect(repos[0].name).toBe('my-repo');
     expect(repos[0].stargazers_count).toBe(500);
@@ -90,25 +113,36 @@ describe('GitHubService', () => {
     const httpGet = jest.fn();
     const svc = await createService(httpGet, cacheGet);
 
-    const result = await svc.searchRepositories('typescript', '2024-01-01', 1, 10);
+    const result = await svc.searchRepositories(
+      'typescript',
+      '2024-01-01',
+      1,
+      10,
+    );
     expect(result).toBe(cached);
     expect(httpGet).not.toHaveBeenCalled();
   });
 
   it('throws ServiceUnavailableException on 403', async () => {
-    const httpGet = jest.fn().mockReturnValue(throwError(() => makeAxiosError(403)));
+    const httpGet = jest
+      .fn()
+      .mockReturnValue(throwError(() => makeAxiosError(403)));
     const svc = await createService(httpGet);
 
-    await expect(svc.searchRepositories('typescript', '2024-01-01', 1, 10)).rejects.toThrow(
-      ServiceUnavailableException,
-    );
+    await expect(
+      svc.searchRepositories('typescript', '2024-01-01', 1, 10),
+    ).rejects.toThrow(ServiceUnavailableException);
   });
 
   it('throws BadRequestException on 422', async () => {
-    const httpGet = jest.fn().mockReturnValue(throwError(() => makeAxiosError(422)));
+    const httpGet = jest
+      .fn()
+      .mockReturnValue(throwError(() => makeAxiosError(422)));
     const svc = await createService(httpGet);
 
-    await expect(svc.searchRepositories('typescript', '2024-01-01', 1, 10)).rejects.toThrow(BadRequestException);
+    await expect(
+      svc.searchRepositories('typescript', '2024-01-01', 1, 10),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('retries once on 500 then succeeds', async () => {
@@ -118,16 +152,36 @@ describe('GitHubService', () => {
       .mockReturnValueOnce(of({ data: { items: [makeRepoItem()] } }));
     const svc = await createService(httpGet);
 
-    const repos = await svc.searchRepositories('typescript', '2024-01-01', 1, 10);
+    const repos = await svc.searchRepositories(
+      'typescript',
+      '2024-01-01',
+      1,
+      10,
+    );
     expect(repos).toHaveLength(1);
     expect(httpGet).toHaveBeenCalledTimes(2);
   });
 
   it('does not retry on 400', async () => {
-    const httpGet = jest.fn().mockReturnValue(throwError(() => makeAxiosError(400)));
+    const httpGet = jest
+      .fn()
+      .mockReturnValue(throwError(() => makeAxiosError(400)));
     const svc = await createService(httpGet);
 
-    await expect(svc.searchRepositories('typescript', '2024-01-01', 1, 10)).rejects.toThrow(BadGatewayException);
+    await expect(
+      svc.searchRepositories('typescript', '2024-01-01', 1, 10),
+    ).rejects.toThrow(BadGatewayException);
     expect(httpGet).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws BadGatewayException when github request times out', async () => {
+    const httpGet = jest
+      .fn()
+      .mockReturnValue(throwError(() => new TimeoutError()));
+    const svc = await createService(httpGet);
+
+    await expect(
+      svc.searchRepositories('typescript', '2024-01-01', 1, 10),
+    ).rejects.toThrow(BadGatewayException);
   });
 });
