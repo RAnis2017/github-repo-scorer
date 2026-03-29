@@ -65,7 +65,7 @@ npm run test:e2e
 
 1. **No async ingestion pipeline.** Right now the API fetches and scores repos live on each request (with a short cache in front). For a production setup I would replace this with a background worker that periodically pulls repos from GitHub, pre-scores them, and stores the results in something like MongoDB. The API would then just read from that store. That way response times don't depend on GitHub being fast, rate limits become much less of a concern, and you can iterate on the scoring logic without it affecting the serving layer.
 
-2. **In-memory cache.** Fine for a single instance but it doesn't survive restarts and won't work across multiple nodes. Redis is the obvious next step. The cache is already injected through `CACHE_MANAGER` so switching the backing store is basically a one-line config change (there's a TODO comment in `github.service.ts` marking the spot).
+2. **In-memory cache.** Fine for a single instance but it doesn't survive restarts and won't work across multiple nodes. Redis is the obvious next step. The cache is already injected through `CACHE_MANAGER` so switching the backing store is basically a one-line config change.
 
 3. **No authentication on the endpoint.** The risk is fairly low since we're just proxying a public API, but in a real service I'd put some form of API key or JWT validation in front of it.
 
