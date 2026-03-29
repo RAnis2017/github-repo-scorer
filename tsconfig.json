@@ -15,11 +15,13 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
+    "rootDir": ".",
     "skipLibCheck": true,
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": true,
     "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "ignoreDeprecations": "6.0"
   }
 }

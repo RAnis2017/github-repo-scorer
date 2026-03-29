@@ -15,11 +15,11 @@ export class SearchReposDto {
   @ApiProperty({ example: 'typescript' })
   @IsString()
   @IsNotEmpty()
-  language: string;
+  declare language: string;
 
   @ApiProperty({ example: '2024-01-01' })
   @IsDateString()
-  createdAfter: string;
+  declare createdAfter: string;
 
   @ApiPropertyOptional({ enum: ['score', 'stars', 'forks'], default: 'score' })
   @IsOptional()
