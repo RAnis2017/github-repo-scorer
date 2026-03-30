@@ -6,6 +6,8 @@ A NestJS REST API that searches GitHub repositories by language and creation dat
 
 **Local:**
 
+Requires Node.js 22+. Developed and tested on Node 24 (latest stable).
+
 ```bash
 npm install
 cp .env.example .env
